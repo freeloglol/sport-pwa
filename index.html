@@ -8,17 +8,73 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="style.css" />
 
-    <!-- iPhone installable -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
+
 <body>
 
-    <h1>Programme du jour</h1>
+    <!-- PAGE AUJOURD’HUI -->
+    <main id="page-today" class="page active">
+        <h1>Séance du jour</h1>
+        <div id="todayContent"></div>
+    </main>
 
-    <div id="exerciseBox"></div>
+    <!-- PAGE CALENDRIER -->
+    <main id="page-calendar" class="page">
+        <h1>Calendrier</h1>
+        <div id="calendarContent"></div>
+    </main>
 
-    <button id="finishBtn">Terminé</button>
+    <!-- MENU BAS -->
+    <nav id="bottomNav">
+        <button class="active" data-page="page-today">Aujourd'hui</button>
+        <button data-page="page-calendar">Calendrier</button>
+    </nav>
+
+    <!-- POPUP : MODIFIER UN EXERCICE -->
+    <div id="popupEdit" class="popup hidden">
+        <div class="popup-inner">
+            <h2 id="popupEditTitle">Modifier exercice</h2>
+
+            <label>Séries :</label>
+            <input id="editSeries" type="number" min="1" max="50">
+
+            <label>Répétitions :</label>
+            <input id="editReps" type="number" min="1" max="200">
+
+            <button id="saveEdit" class="btn-primary">Sauvegarder</button>
+            <button id="cancelEdit" class="btn-secondary">Annuler</button>
+        </div>
+    </div>
+
+    <!-- POPUP : JOUR DU CALENDRIER -->
+    <div id="popupDay" class="popup hidden">
+        <div class="popup-inner">
+            <h2 id="popupDayTitle"></h2>
+            <div id="popupDayContent"></div>
+
+            <button id="setVacation" class="btn-secondary">Marquer en vacances</button>
+            <button id="closeDay" class="btn-primary">Fermer</button>
+        </div>
+    </div>
+
+    <!-- POPUP : VACANCES -->
+    <div id="popupVacation" class="popup hidden">
+        <div class="popup-inner">
+            <h2>Période de vacances</h2>
+            <p>Choisis une date de début et une date de fin.</p>
+
+            <label>Début :</label>
+            <input type="date" id="vacStart">
+
+            <label>Fin :</label>
+            <input type="date" id="vacEnd">
+
+            <button id="saveVacation" class="btn-primary">Appliquer</button>
+            <button id="cancelVacation" class="btn-secondary">Annuler</button>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
