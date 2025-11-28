@@ -406,6 +406,26 @@ document.getElementById("closeDay").onclick = () => {
 };
 
 //---------------------------------------------
+// NAVIGATION ENTRE LES PAGES
+//---------------------------------------------
+window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("#bottomNav button").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const target = btn.dataset.page;
+
+            // Changer la page active
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+            document.getElementById(target).classList.add("active");
+
+            // Boutons actifs
+            document.querySelectorAll("#bottomNav button").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        });
+    });
+});
+
+
+//---------------------------------------------
 // INIT
 //---------------------------------------------
 renderToday();
