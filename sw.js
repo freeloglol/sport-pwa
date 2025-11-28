@@ -1,4 +1,4 @@
-const CACHE_NAME = "sport-pwa-v1";
+const CACHE_NAME = "sport-pwa-v2";
 const FILES_TO_CACHE = [
     "/",
     "/index.html",
@@ -7,18 +7,29 @@ const FILES_TO_CACHE = [
     "/manifest.json"
 ];
 
-// Installation du SW
+// Installation
 self.addEventListener("install", event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
     );
 });
 
-// Gestion du offline
+// Activation (nettoyage anciens caches)
+self.addEventListener("activate", event => {
+    event.waitUntil(
+        caches.keys().then(keys => 
+            Promise.all(keys.map(key => {
+                if (key !== CACHE_NAME) return caches.delete(key);
+            }))
+        )
+    );
+});
+
+// Fetch
 self.addEventListener("fetch", event => {
     event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request);
+        caches.match(event.request).then(res => {
+            return res || fetch(event.request);
         })
     );
 });
