@@ -43,10 +43,9 @@ function load(key, fallback = null) {
 //---------------------------------------------
 // VACANCES SYSTEM
 //---------------------------------------------
-
-function isVacationDate(index) {
+function isVacationDate(dayIndex) {
     const vac = load("vacances", []);
-    return vac.includes(index);
+    return vac.includes(dayIndex);
 }
 
 function addVacationRange(start, end) {
@@ -63,11 +62,9 @@ function addVacationRange(start, end) {
 //---------------------------------------------
 function getWeekData(week, exerciseName) {
 
-    // S'il existe une modification manuelle pour cette semaine/exo
+    // Vérifie si modif manuelle
     const manual = load("manual-" + exerciseName + "-week-" + week);
-    if (manual) {
-        return manual;
-    }
+    if (manual) return manual;
 
     // SERIES (+2 par semaine)
     let series = BASE.series + (week - 1) * 2;
@@ -82,7 +79,7 @@ function getWeekData(week, exerciseName) {
     }
     reps = Math.min(reps, MAX_REPS);
 
-    // KM
+    // KM progression
     let km;
     if (week <= 6) {
         km = BASE.km + (week - 1) * 2;
@@ -91,9 +88,8 @@ function getWeekData(week, exerciseName) {
     }
     km = Math.min(km, MAX_KM);
 
-    // Volume check
-    let total = series * reps;
-    if (total > MAX_VOLUME) {
+    // Volume max
+    if (series * reps > MAX_VOLUME) {
         reps = Math.floor(MAX_VOLUME / series);
     }
 
@@ -101,7 +97,7 @@ function getWeekData(week, exerciseName) {
 }
 
 //---------------------------------------------
-// GENERER UNE JOURNÉE
+// PROGRAMME COMPLET
 //---------------------------------------------
 function generateDay(week, day) {
     const restDays = [3, 6];
@@ -127,12 +123,8 @@ function generateDay(week, day) {
     };
 }
 
-//---------------------------------------------
-// GENERER LE PROGRAMME COMPLET
-//---------------------------------------------
 function generateProgram(weeks = 52) {
     const program = [];
-
     for (let w = 1; w <= weeks; w++) {
         const week = [];
         for (let d = 1; d <= 7; d++) {
@@ -140,18 +132,16 @@ function generateProgram(weeks = 52) {
         }
         program.push(week);
     }
-
     return program;
 }
 
 const PROGRAM = generateProgram();
 
 //---------------------------------------------
-// SÉANCE DU JOUR
+// JOUR ACTUEL DU PROGRAMME
 //---------------------------------------------
 function getCurrentDay() {
-    let dayIndex = load("programDay", 0);
-    return parseInt(dayIndex);
+    return load("programDay", 0);
 }
 
 function markDone(index) {
@@ -159,34 +149,30 @@ function markDone(index) {
 }
 
 //---------------------------------------------
-// AFFICHAGE PAGE AUJOURD’HUI
+// PAGE AUJOURD’HUI
 //---------------------------------------------
 function renderToday() {
     const container = document.getElementById("todayContent");
     container.innerHTML = "";
 
-    const dayIndex = getCurrentDay();
+    let dayIndex = getCurrentDay();
 
-    // Sauter les vacances si le jour actuel est marqué
-    let tempIndex = dayIndex;
-    while (isVacationDate(tempIndex)) {
-        tempIndex++;
+    // Skip vacances
+    while (isVacationDate(dayIndex)) {
+        dayIndex++;
     }
-    const realIndex = tempIndex;
 
-    const week = Math.floor(realIndex / 7) + 1;
-    const day = (realIndex % 7) + 1;
+    const week = Math.floor(dayIndex / 7) + 1;
+    const day = (dayIndex % 7) + 1;
 
     const data = PROGRAM[week - 1][day - 1];
 
     if (data.type === "rest") {
-        container.innerHTML = `
-            <p>Jour de repos 😴</p>
-        `;
+        container.innerHTML = `<p>Jour de repos 😴</p>`;
         return;
     }
 
-    data.exercises.forEach((exo, i) => {
+    data.exercises.forEach(exo => {
         container.innerHTML += `
             <div class="exercise-card">
                 <h3>${exo.name}</h3>
@@ -203,7 +189,7 @@ function renderToday() {
         </div>
     `;
 
-    const done = load("done-" + realIndex, false);
+    const done = load("done-" + dayIndex, false);
 
     container.innerHTML += `
         <button class="finish-btn" id="finishBtn" ${done ? "disabled" : ""}>
@@ -213,8 +199,8 @@ function renderToday() {
 
     if (!done) {
         document.getElementById("finishBtn").onclick = () => {
-            markDone(realIndex);
-            save("programDay", realIndex + 1);
+            markDone(dayIndex);
+            save("programDay", dayIndex + 1);
             renderToday();
             renderCalendar();
         };
@@ -222,7 +208,7 @@ function renderToday() {
 }
 
 //---------------------------------------------
-// POPUP MODIFICATION D’UN EXERCICE
+// POPUP MODIFICATION
 //---------------------------------------------
 let currentEditExercise = null;
 let currentEditWeek = null;
@@ -249,7 +235,6 @@ document.getElementById("saveEdit").onclick = () => {
     const r = parseInt(document.getElementById("editReps").value);
 
     const manual = { series: s, reps: r, km: getWeekData(currentEditWeek, "km").km };
-
     save("manual-" + currentEditExercise + "-week-" + currentEditWeek, manual);
 
     document.getElementById("popupEdit").classList.add("hidden");
@@ -258,43 +243,143 @@ document.getElementById("saveEdit").onclick = () => {
 };
 
 //---------------------------------------------
-// PAGE CALENDRIER
+// NOUVEAU CALENDRIER (VRAI MOIS + RONDS)
 //---------------------------------------------
+
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth(); // 0=janvier
+
+const monthNames = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+];
+//---------------------------------------------
+// RENDER CALENDAR MONTH VIEW
+//---------------------------------------------
+function daysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+function firstDayOfMonth(year, month) {
+    return new Date(year, month, 1).getDay(); // 0=dimanche
+}
+
+// Convertit dimanche→7 pour aligner lundi=1
+function correctDay(d) {
+    return d === 0 ? 7 : d;
+}
+
 function renderCalendar() {
     const container = document.getElementById("calendarContent");
     container.innerHTML = "";
 
-    const currentDay = getCurrentDay();
+    const totalDays = daysInMonth(currentYear, currentMonth);
+    const startDay = correctDay(firstDayOfMonth(currentYear, currentMonth)); // 1 à 7
 
-    for (let i = 0; i < 21; i++) {
-        const w = Math.floor(i / 7) + 1;
-        const d = (i % 7) + 1;
-        const data = PROGRAM[w - 1][d - 1];
+    // Header mois
+    document.querySelector("#page-calendar h1").innerHTML = `
+        <button class="monthBtn" onclick="prevMonth()">◀</button>
+        ${monthNames[currentMonth]} ${currentYear}
+        <button class="monthBtn" onclick="nextMonth()">▶</button>
+    `;
 
-        let css = "calendar-day";
+    // Ligne des jours
+    const daysHeader = `
+        <div class="calendar-row header">
+            <div>L</div><div>M</div><div>M</div><div>J</div>
+            <div>V</div><div>S</div><div>D</div>
+        </div>
+    `;
+    container.innerHTML += daysHeader;
 
-        if (isVacationDate(i)) css += " vac";
-        else if (load("done-" + i)) css += " completed";
-        else if (data.type === "rest") css += " rest";
-        else if (i === currentDay) css += " current";
+    // Grille du mois
+    let html = '<div class="calendar-grid">';
 
-        container.innerHTML += `
-            <div class="${css}" onclick="openDayPopup(${i})">
-                S${w}J${d}
-            </div>
-        `;
+    // Cases vides avant le 1
+    for (let i = 1; i < startDay; i++) {
+        html += `<div class="day empty"></div>`;
     }
+
+    const today = new Date();
+
+    for (let day = 1; day <= totalDays; day++) {
+        let css = "day bubble";
+
+        // Convertit ce jour du mois en index du programme
+        let globalIndex = getGlobalDayIndex(currentYear, currentMonth, day);
+
+        // JOUR ACTUEL
+        if (
+            currentYear === today.getFullYear() &&
+            currentMonth === today.getMonth() &&
+            day === today.getDate()
+        ) {
+            css += " currentDay";
+        }
+
+        // Séance terminée
+        if (load("done-" + globalIndex)) css += " doneDay";
+
+        // Vacances
+        if (isVacationDate(globalIndex)) css += " vacDay";
+
+        // Repos
+        const w = Math.floor(globalIndex / 7) + 1;
+        const d = (globalIndex % 7) + 1;
+        if (PROGRAM[w - 1][d - 1].type === "rest") css += " restDay";
+
+        html += `
+        <div class="${css}" onclick="openDayPopup(${globalIndex})">
+            ${day}
+        </div>`;
+    }
+
+    html += "</div>";
+    container.innerHTML += html;
 }
 
 //---------------------------------------------
-// POPUP JOUR DU CALENDRIER
+// MATH POUR LIER CALENDRIER ↔ PROGRAMME
+//---------------------------------------------
+function getGlobalDayIndex(year, month, day) {
+    const now = new Date(year, month, day);
+    const start = new Date(currentYear, currentMonth, 1);
+
+    const diff = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
+
+    return diff;
+}
+
+//---------------------------------------------
+// CHANGER DE MOIS
+//---------------------------------------------
+function prevMonth() {
+    currentMonth--;
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+    renderCalendar();
+}
+
+function nextMonth() {
+    currentMonth++;
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+    renderCalendar();
+}
+
+//---------------------------------------------
+// POPUP JOUR
 //---------------------------------------------
 function openDayPopup(index) {
     const w = Math.floor(index / 7) + 1;
     const d = (index % 7) + 1;
     const data = PROGRAM[w - 1][d - 1];
 
-    document.getElementById("popupDayTitle").textContent = `Semaine ${w} - Jour ${d}`;
+    document.getElementById("popupDayTitle").textContent = `Jour du programme : S${w}J${d}`;
 
     if (data.type === "rest") {
         document.getElementById("popupDayContent").innerHTML = "<p>Repos</p>";
@@ -319,36 +404,6 @@ function openDayPopup(index) {
 document.getElementById("closeDay").onclick = () => {
     document.getElementById("popupDay").classList.add("hidden");
 };
-
-//---------------------------------------------
-// VACATION POPUP
-//---------------------------------------------
-document.getElementById("cancelVacation").onclick = () => {
-    document.getElementById("popupVacation").classList.add("hidden");
-};
-
-document.getElementById("saveVacation").onclick = () => {
-    const s = parseInt(document.getElementById("vacStart").value);
-    const e = parseInt(document.getElementById("vacEnd").value);
-    addVacationRange(s, e);
-    renderCalendar();
-    document.getElementById("popupVacation").classList.add("hidden");
-};
-
-//---------------------------------------------
-// NAVIGATION
-//---------------------------------------------
-document.querySelectorAll("#bottomNav button").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const target = btn.dataset.page;
-
-        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-        document.getElementById(target).classList.add("active");
-
-        document.querySelectorAll("#bottomNav button").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-    });
-});
 
 //---------------------------------------------
 // INIT
